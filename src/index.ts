@@ -2,6 +2,7 @@ import * as dotenvSafe from 'dotenv-safe'
 import moment from 'moment'
 import * as inquirer from 'inquirer'
 import * as request from 'request'
+import * as fs from 'fs'
 
 dotenvSafe.config()
 
@@ -80,6 +81,24 @@ export async function fetchTicketEvents(
   })
 }
 
+async function fetchTicketEventsFromCache(path: string): Promise<any[]> {
+  return new Promise((resolve, reject) => {
+    fs.readFile('cache/ticketEvent.json', (err, data) => {
+      if (err) reject(err)
+      resolve(JSON.parse(data.toString()))
+    })
+  })
+}
+
+async function saveTicketEventsToCache(path: string, data: any[]) {
+  return new Promise((resolve, reject) => {
+    fs.writeFile('cache/ticketEvent.json', JSON.stringify(data), err => {
+      if (err) reject(err)
+      resolve()
+    })
+  })
+}
+
 async function main() {
   const url = generateSearchQuery(
     ZENDESK_URL,
@@ -99,7 +118,18 @@ async function main() {
   })
   const ticketEvents = response
 
-  ticketEvents.forEach((event: any) => {
+  await saveTicketEventsToCache('cache/ticketEvent.json', ticketEvents).catch(
+    err => {
+      console.log(err)
+      process.exit()
+    }
+  )
+
+  const ticketEventsFromCache = await fetchTicketEventsFromCache(
+    'cache/ticketEvents.json'
+  )
+
+  ticketEventsFromCache.forEach((event: any) => {
     const { updater_id, timestamp } = event
     console.log(
       `Updater ID: ${updater_id}, Last Updated: ${moment
